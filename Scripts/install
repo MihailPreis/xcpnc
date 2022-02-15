@@ -1,0 +1,57 @@
+#!/bin/bash
+
+set -e
+
+INSTALL_DIR="/usr/local/bin"
+
+_sudo_if_need() {
+  local command="$1"
+  if [ -w $INSTALL_DIR ]; then
+    bash -c "${command}"
+  else
+    bash -c "sudo ${command}"
+  fi
+}
+
+_join() {
+  local arg
+  printf "%s" "$1"
+  shift
+  for arg in "$@"; do
+    printf " "
+    printf "%s" "${arg// /\ }"
+  done
+}
+
+_echo() {
+  printf "${tty_blue}==>${tty_bold} %s${tty_reset}\n" "$(_join "$@")"
+}
+
+_echo "Downloading xcpnc..."
+
+[ -f /tmp/xcpnc.zip ] && rm /tmp/xcpnc.zip
+[ -d /tmp/xcpnc-main ] && rm -rf /tmp/xcpnc-main
+curl -LSsf --output /tmp/xcpnc.zip https://github.com/MihailPreis/xcpnc/archive/main.zip
+
+_echo "Compile xcpnc..."
+
+unzip -o /tmp/xcpnc.zip -d /tmp > /dev/null
+( cd /tmp/xcpnc-main; swift build -c release ) > /dev/null
+
+_echo "Installing xcpnc..."
+
+if [[ ! -d $INSTALL_DIR ]]; then
+  _sudo_if_need "mkdir -p ${INSTALL_DIR}"
+fi
+
+if [[ -f "${INSTALL_DIR}/xcpnc" ]]; then
+  _sudo_if_need "rm ${INSTALL_DIR}/xcpnc"
+fi
+
+_sudo_if_need "mv /tmp/xcpnc-main/.build/release/xcpnc \"${INSTALL_DIR}/xcpnc\""
+
+rm -rf /tmp/xcpnc-main
+rm /tmp/xcpnc.zip
+
+_echo "xcpnc installed. Try running 'xcpnc'"
+_echo "Check out the documentation at https://github.com/MihailPreis/xcpnc"
